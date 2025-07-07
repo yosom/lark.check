@@ -1,0 +1,8 @@
+{
+  "transform_fail": "Transformation failed, transformed {{transformNum}} pieces of data",
+  "transform_success": "Transformation succeeded, {{transformNum}} pieces of data have been transformed",
+  "transform_warning": "no data to convert",
+  "script_des": "This is a Proper function tool that will format the English words in the selected text field (capitalize the first letter and lowercase the rest)",
+  "select_field": "Please select the text type field name that needs to be converted",
+  "transform": "convert"
+}

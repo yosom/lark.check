@@ -1,0 +1,8 @@
+{
+  "transform_fail": "转换失败，已转换 {{transformNum}} 条数据",
+  "transform_success": "转换成功，已转换 {{transformNum}} 条数据",
+  "transform_warning": "没有需要转换的数据",
+  "script_des": "这是一个 Proper 函数工具，会将所选择的文本字段中的英文单词格式化处理（首字母大写，其余字母小写）",
+  "select_field": "请选择需要转换的文本类型字段名称",
+  "transform": "转换"
+}
