@@ -29,3 +29,7 @@ language = "nodejs"
 [deployment]
 build = ["sh", "-c", "npm run build"]
 run = ["sh", "-c", "npm run preview"]
+
+[[ports]]
+localPort = 5173
+externalPort = 80

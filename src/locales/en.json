@@ -4,5 +4,11 @@
   "transform_warning": "no data to convert",
   "script_des": "This is a Proper function tool that will format the English words in the selected text field (capitalize the first letter and lowercase the rest)",
   "select_field": "Please select the text type field name that needs to be converted",
-  "transform": "convert"
+  "transform": "convert",
+  "no_history": "No modification history yet",
+  "history_record": "Row Index",
+  "history_oldVal": "Old Value",
+  "history_newVal": "New Value",
+  "history_column": "Column",
+  "invalid_validator_rule": "The validation rule for field {{name}} is incorrect and has been skipped."
 }

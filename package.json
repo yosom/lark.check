@@ -14,6 +14,7 @@
   "devDependencies": {
     "@types/react": "^18.0.15",
     "@types/react-dom": "^18.0.6",
+    "@types/validatorjs": "^3.15.5",
     "@vitejs/plugin-react": "^2.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -25,8 +26,13 @@
     "@douyinfe/semi-foundation": "^2.38.0",
     "@douyinfe/semi-icons": "^2.38.2",
     "@douyinfe/semi-ui": "^2.36.0",
+    "fastest-validator": "^1.19.1",
     "i18next": "^23.2.3",
+    "multicoin-address-validator": "^0.5.26",
+    "parse-duration": "^2.1.4",
     "react-i18next": "^13.0.1",
-    "reset-css": "^5.0.1"
+    "reset-css": "^5.0.1",
+    "Validator": "^1.1.4",
+    "validatorjs": "^3.22.1"
   }
 }

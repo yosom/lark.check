@@ -1,0 +1,10 @@
+{
+  "transform": "开始转换",
+  "transform_success": "转换成功，共处理 {{transformNum}} 条记录",
+  "no_history": "暂无校验历史",
+  "history_record": "行号",
+  "history_column": "列名",
+  "history_oldVal": "原值",
+  "history_newVal": "校验结果",
+  "invalid_validator_rule": "字段 {{name}} 的校验规则存在错误，已跳过。"
+}
