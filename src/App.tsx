@@ -167,6 +167,29 @@ export default function App() {
   const validatorsCache = useRef<ValidatorCache>({});
   const batchSize = 1000; // 每批处理的记录数
 
+  // 带重试机制的 setCellValue 函数
+  const setCellValueWithRetry = async (table: any, fieldId: string, recordId: string, cellValue: IOpenCellValue, maxRetries: number = 3): Promise<boolean> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await table.setCellValue(fieldId, recordId, cellValue);
+        console.log(`设置成功 (尝试 ${attempt}/${maxRetries}):`, fieldId, recordId, cellValue, "结果:", res);
+        return true;
+      } catch (error) {
+        console.log(`设置失败 (尝试 ${attempt}/${maxRetries}):`, fieldId, recordId, cellValue, "错误:", error);
+        
+        if (attempt === maxRetries) {
+          console.error(`设置单元格值最终失败，已重试 ${maxRetries} 次:`, fieldId, recordId, cellValue, error);
+          return false;
+        }
+        
+        // 等待一段时间后重试，使用指数退避策略
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // 最大等待5秒
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    return false;
+  };
+
   const getTableMetadata = async () => {
     const selection = await bitable.base.getSelection();
     if (!selection?.tableId) {
@@ -192,7 +215,7 @@ export default function App() {
       console.log("onRecordAdd");
 
       // 新增行记录 id
-      const fields = await getTableMetadata();
+      let fields = await getTableMetadata();
       for (const recordId of event.data) {
         for (const field of fields) {
           try {
@@ -208,8 +231,12 @@ export default function App() {
             const cellValue = createCellValueByType(field.type, String(rule.schema.default), field);
             
             if (cellValue !== null) {
-              const res = await table.setCellValue(field.id, recordId, cellValue);
-              console.log("设置的值为", field.name, recordId, field.id, String(rule.schema.default), "结果:", res);
+              const success = await setCellValueWithRetry(table, field.id, recordId, cellValue);
+              if (success) {
+                console.log("设置的值为", field.name, recordId, field.id, String(rule.schema.default), "成功");
+              } else {
+                console.error("设置的值为", field.name, recordId, field.id, String(rule.schema.default), "失败");
+              }
             } else {
               console.log("字段类型不支持设置默认值:", field.name, field.type);
             }
@@ -220,18 +247,24 @@ export default function App() {
       }
 
       // 重新验证数据
+      recordsCache.current = [];
+      validatorsCache.current = {};
       await handleValidation(fields);
+      console.log("重新验证数据完成");
     });
 
     const offModify = table.onRecordModify(async () => {
       console.log("onRecordModify");
+      recordsCache.current = [];
+      validatorsCache.current = {};
       const fields = await getTableMetadata();
-      // 重新验证数据
       await handleValidation(fields);
     });
 
     const offDelete = table.onRecordDelete(async  () => {
       console.log("onRecordDelete");
+      recordsCache.current = [];
+      validatorsCache.current = {};
       const fields = await getTableMetadata();
       // 重新验证数据
       await handleValidation(fields);
