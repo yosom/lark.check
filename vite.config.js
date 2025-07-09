@@ -10,5 +10,5 @@ export default defineConfig({
   build: {
     outDir: 'docs',
   },
-  base: '/lark.check/',
+  base: './lark.check/',
 })
