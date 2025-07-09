@@ -171,6 +171,12 @@ export default function App() {
             }
   
             console.log("设置的值为",field.name,recordId, field.id, String(rule.schema.default));
+
+
+            // 获取cellvalue, 
+            const cellValue = await table.getCellValue(recordId, field.id);
+            console.log("cellValue", cellValue);
+
             const res = await table.setRecord(recordId,{
               fields: {
                 [field.id]: String(rule.schema.default)
@@ -340,10 +346,14 @@ export default function App() {
     endIndex: number
   ): Promise<ValidationHistoryRecord[]> => {
     const batchResults: ValidationHistoryRecord[] = [];
+
+    console.log("processBatchValidation", validator, endIndex);
     
     for (let i = startIndex; i < endIndex && i < records.length; i++) {
       const record = records[i];
       const cellValue = record.fields[fieldMetadata.id] || '';
+
+      console.log("cellValue", cellValue);
       
       const validationResult = validator({ [fieldMetadata.name]: cellValue });
       
