@@ -1,10 +1,11 @@
 {
-  "transform": "开始转换",
-  "transform_success": "转换成功，共处理 {{transformNum}} 条记录",
-  "no_history": "暂无校验历史",
+  "transform": "开始验证",
+  "transform_success": "验证完成，共处理 {{processedRecordsCount}} 条记录",
+  "no_history": "检查通过，没有发现错误",
   "history_record": "行号",
   "history_column": "列名",
-  "history_oldVal": "原值",
-  "history_newVal": "校验结果",
-  "invalid_validator_rule": "字段 {{name}} 的校验规则存在错误，已跳过。"
+  "history_oldVal": "当前值",
+  "history_newVal": "错误原因",
+  "validating_table": "正在校验表格，请稍候…",
+  "invalid_validator_rule": "字段 {{name}} 的验证规则存在错误，已跳过。"
 }
