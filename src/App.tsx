@@ -223,12 +223,18 @@ export default function App() {
       await handleValidation(fields);
     });
 
-    const offModify = table.onRecordModify(() => {
+    const offModify = table.onRecordModify(async () => {
       console.log("onRecordModify");
+      const fields = await getTableMetadata();
+      // 重新验证数据
+      await handleValidation(fields);
     });
 
-    const offDelete = table.onRecordDelete(() => {
+    const offDelete = table.onRecordDelete(async  () => {
       console.log("onRecordDelete");
+      const fields = await getTableMetadata();
+      // 重新验证数据
+      await handleValidation(fields);
     });
 
     // 返回取消监听函数
