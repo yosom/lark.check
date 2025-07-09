@@ -218,6 +218,9 @@ export default function App() {
           }
         }
       }
+
+      // 重新验证数据
+      await handleValidation(fields);
     });
 
     const offModify = table.onRecordModify(() => {
