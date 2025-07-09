@@ -1,5 +1,5 @@
 import './App.css';
-import {bitable, FieldType,IRecord,checkers, IGetRecordsResponse, IFieldMeta, IOpenCellValue } from "@lark-base-open/js-sdk"
+import {bitable, FieldType,IRecord,checkers,IOpenSingleSelect, IGetRecordsResponse, IFieldMeta, IOpenCellValue } from "@lark-base-open/js-sdk"
 import { Toast, Table } from '@douyinfe/semi-ui';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -90,6 +90,42 @@ export function getCellTextValue(cellValue: IOpenCellValue): string {
   return cellValue_text;
 }
 
+/**
+ * 根据字段类型和默认值创建正确的单元格值
+ * @param fieldType - 字段类型
+ * @param defaultValue - 默认值字符串
+ * @param fieldMeta - 字段元数据（用于获取选项等）
+ * @returns 正确格式的单元格值
+ */
+const createCellValueByType = (fieldType: FieldType, defaultValue: string, fieldMeta?: IFieldMeta): IOpenCellValue => {
+  switch (fieldType) {
+    case FieldType.Text:
+      return defaultValue;
+    
+    case FieldType.Number:
+      const numValue = parseFloat(defaultValue);
+      return isNaN(numValue) ? 0 : numValue;
+    
+    case FieldType.SingleSelect:
+      // 单选字段需要根据选项名称找到对应的选项ID
+      if (fieldMeta && (fieldMeta as any).property?.options) {
+        const options = (fieldMeta as any).property.options;
+        const option = options.find((opt: any) => opt.name === defaultValue);
+        
+        const value: IOpenSingleSelect = {
+          id: option.id,
+          text: option.name
+        }
+        return value;
+      }
+      // 如果找不到匹配的选项，返回null
+      return null;    
+    default:
+      // 其他不支持的类型返回null
+      return null;
+  }
+};
+
 // 接口定义
 interface ValidationHistoryRecord {
   recordId: string;
@@ -171,18 +207,26 @@ export default function App() {
             }
   
             console.log("设置的值为",field.name,recordId, field.id, String(rule.schema.default));
+      
 
 
-            // 获取cellvalue, 
-            const cellValue = await table.getCellValue(recordId, field.id);
-            console.log("cellValue", cellValue);
+            // 根据字段类型创建正确的单元格值
+            const cellValue = createCellValueByType(field.type, String(rule.schema.default), field);
+            
+            if (cellValue !== null) {
+              const res = await table.setCellValue(field.id, recordId, cellValue);
+              console.log("设置的值为", field.name, recordId, field.id, String(rule.schema.default), "结果:", res);
+            } else {
+              console.log("字段类型不支持设置默认值:", field.name, field.type);
+            }
 
-            const res = await table.setRecord(recordId,{
-              fields: {
-                [field.id]: String(rule.schema.default)
-              }
-            })
-            console.log("res: ", res);
+            // console.log("Field", Field);
+
+            // const res = await table.setRecord(recordId,{
+            //   fields: {
+            //     [field.id]: String(rule.schema.default)
+            //   }
+            // })
           } catch (error) {
             console.log("error: ", error);
           }
@@ -516,3 +560,33 @@ export default function App() {
     </div>
   )
 }
+
+/**
+ * 字段类型默认值格式说明：
+ * 
+ * Text: "字符串值"
+ * Number: "123.45" 或 "100"
+ * SingleSelect: "选项名称" (必须在字段选项中存在)
+ * MultiSelect: "选项1,选项2,选项3" (多个选项用逗号分隔)
+ * Checkbox: "true" 或 "false" 或 "1" 或 "0" 或 "是" 或 "否"
+ * DateTime: "2024-01-01" 或 "now" 或 "当前时间"
+ * Phone: "13800138000"
+ * Url: "https://example.com"
+ * Email: "user@example.com"
+ * User: "user_id1,user_id2" (用户ID用逗号分隔)
+ * GroupChat: "group_id1,group_id2" (群ID用逗号分隔)
+ * Progress: "50" (0-100之间的数字)
+ * Rating: "5" (评分数字)
+ * Currency: "100.50" (货币数字)
+ * Location: "北京市朝阳区" (地址字符串)
+ * Barcode: "1234567890" (条形码字符串)
+ * 
+ * 不支持设置默认值的字段类型：
+ * - Attachment (附件)
+ * - AutoNumber (自动编号)
+ * - Formula (公式)
+ * - Lookup (查找)
+ * - CreatedUser (创建人)
+ * - ModifiedUser (修改人)
+ * - Object (对象)
+ */
