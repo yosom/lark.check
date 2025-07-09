@@ -194,7 +194,6 @@ export default function App() {
       // 新增行记录 id
       const fields = await getTableMetadata();
       for (const recordId of event.data) {
-        console.log("recordId: ", recordId);
         for (const field of fields) {
           try {
             const validatorConfig = extractValidatorConfig(field);
@@ -205,12 +204,7 @@ export default function App() {
             if (!rule.schema.default) {
               continue;
             }
-  
-            console.log("设置的值为",field.name,recordId, field.id, String(rule.schema.default));
-      
 
-
-            // 根据字段类型创建正确的单元格值
             const cellValue = createCellValueByType(field.type, String(rule.schema.default), field);
             
             if (cellValue !== null) {
@@ -219,14 +213,6 @@ export default function App() {
             } else {
               console.log("字段类型不支持设置默认值:", field.name, field.type);
             }
-
-            // console.log("Field", Field);
-
-            // const res = await table.setRecord(recordId,{
-            //   fields: {
-            //     [field.id]: String(rule.schema.default)
-            //   }
-            // })
           } catch (error) {
             console.log("error: ", error);
           }
