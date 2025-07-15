@@ -1,5 +1,5 @@
 import './App.css';
-import {bitable, FieldType,IRecord,checkers,IOpenSingleSelect, IGetRecordsResponse, IFieldMeta, IOpenCellValue } from "@lark-base-open/js-sdk"
+import { bitable, FieldType, IRecord, checkers, IOpenSingleSelect, IGetRecordsResponse, IFieldMeta, IOpenCellValue } from "@lark-base-open/js-sdk"
 import { Toast, Table } from '@douyinfe/semi-ui';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -79,7 +79,7 @@ export function getCellTextValue(cellValue: IOpenCellValue): string {
   } else if (checkers.isSegments(cellValue)) {
     cellValue_text = cellValue.map((item: any) => item.text).join(",");
     cellValue_type = "isSegments"
-  }  else if (checkers.isGroupChat(cellValue)) {
+  } else if (checkers.isGroupChat(cellValue)) {
     cellValue_text = "不支持当前类型的校验"
     cellValue_type = "isGroupChat"
   } else if (checkers.isGroupChats(cellValue)) {
@@ -101,17 +101,17 @@ const createCellValueByType = (fieldType: FieldType, defaultValue: string, field
   switch (fieldType) {
     case FieldType.Text:
       return defaultValue;
-    
+
     case FieldType.Number:
       const numValue = parseFloat(defaultValue);
       return isNaN(numValue) ? 0 : numValue;
-    
+
     case FieldType.SingleSelect:
       // 单选字段需要根据选项名称找到对应的选项ID
       if (fieldMeta && (fieldMeta as any).property?.options) {
         const options = (fieldMeta as any).property.options;
         const option = options.find((opt: any) => opt.name === defaultValue);
-        
+
         const value: IOpenSingleSelect = {
           id: option.id,
           text: option.name
@@ -119,7 +119,7 @@ const createCellValueByType = (fieldType: FieldType, defaultValue: string, field
         return value;
       }
       // 如果找不到匹配的选项，返回null
-      return null;    
+      return null;
     default:
       // 其他不支持的类型返回null
       return null;
@@ -153,19 +153,88 @@ interface ValidatorCache {
   };
 }
 
+// 新增：格式化消息的接口
+interface FormattedMessage {
+  problemType: string;
+  fieldName: string;
+  rowNumbers: number[];
+}
+
 export default function App() {
   const [fieldsMetadata, setFieldsMetadata] = useState<IFieldMeta[]>([]);
   const [validationHistory, setValidationHistory] = useState<ValidationHistoryRecord[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
   // 校验状态，用于在校验过程中给用户反馈
   const [isValidatingState, setIsValidatingState] = useState<boolean>(false);
+  // 新增：格式化的消息状态
+  const [formattedMessages, setFormattedMessages] = useState<FormattedMessage[]>([]);
   const { t } = useTranslation();
   const isValidating = useRef(false);
-  
+
   // 缓存表格数据和验证器
   const recordsCache = useRef<RecordData[]>([]);
   const validatorsCache = useRef<ValidatorCache>({});
   const batchSize = 1000; // 每批处理的记录数
+
+  // 新增：生成和API推送相同格式的消息
+  const generateFormattedMessages = (validationHistory: ValidationHistoryRecord[]): FormattedMessage[] => {
+    if (validationHistory.length === 0) return [];
+
+    // 按问题类型分组错误
+    const groupedByProblem: { [problemType: string]: ValidationHistoryRecord[] } = {};
+    validationHistory.forEach(record => {
+      const problemType = record.validationResult;
+      if (!groupedByProblem[problemType]) {
+        groupedByProblem[problemType] = [];
+      }
+      groupedByProblem[problemType].push(record);
+    });
+
+    const formattedMessages: FormattedMessage[] = [];
+
+    // 创建recordId到行号的映射
+    const recordIdToRowMap: { [recordId: string]: number } = {};
+    validationHistory.forEach((record, index) => {
+      if (!recordIdToRowMap[record.recordId]) {
+        recordIdToRowMap[record.recordId] = index + 1;
+      }
+    });
+
+    // 为每个问题类型生成简洁格式
+    Object.entries(groupedByProblem).forEach(([problemType, problemErrors]) => {
+      // 按字段分组，获取每个字段的行号
+      const fieldGroups: { [fieldName: string]: Set<number> } = {};
+
+      problemErrors.forEach((error) => {
+        if (!fieldGroups[error.columnName]) {
+          fieldGroups[error.columnName] = new Set();
+        }
+        // 使用recordId对应的行号
+        const rowNumber = recordIdToRowMap[error.recordId];
+        if (rowNumber) {
+          fieldGroups[error.columnName].add(rowNumber);
+        }
+      });
+
+      // 为每个字段生成消息
+      Object.entries(fieldGroups).forEach(([fieldName, rowNumbersSet]) => {
+        const sortedRows = Array.from(rowNumbersSet).sort((a, b) => a - b);
+        formattedMessages.push({
+          problemType,
+          fieldName,
+          rowNumbers: sortedRows
+        });
+      });
+    });
+
+    return formattedMessages;
+  };
+
+  // 在validationHistory更新时，同时更新格式化消息
+  useEffect(() => {
+    const formatted = generateFormattedMessages(validationHistory);
+    setFormattedMessages(formatted);
+  }, [validationHistory]);
 
   // 带重试机制的 setCellValue 函数
   const setCellValueWithRetry = async (table: any, fieldId: string, recordId: string, cellValue: IOpenCellValue, maxRetries: number = 3): Promise<boolean> => {
@@ -176,12 +245,12 @@ export default function App() {
         return true;
       } catch (error) {
         console.log(`设置失败 (尝试 ${attempt}/${maxRetries}):`, fieldId, recordId, cellValue, "错误:", error);
-        
+
         if (attempt === maxRetries) {
           console.error(`设置单元格值最终失败，已重试 ${maxRetries} 次:`, fieldId, recordId, cellValue, error);
           return false;
         }
-        
+
         // 等待一段时间后重试，使用指数退避策略
         const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // 最大等待5秒
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -197,7 +266,7 @@ export default function App() {
       return [];
     }
     const table = await bitable.base.getTableById(selection.tableId);
-    
+
     const fieldMetadataList = await table.getFieldMetaList();
     if (!fieldMetadataList) {
       setFieldsMetadata([]);
@@ -221,7 +290,7 @@ export default function App() {
           try {
             const validatorConfig = extractValidatorConfig(field);
             if (!validatorConfig) continue;
-  
+
             const validator = createValidator([]);
             const rule = validator.getRuleFromSchema(validatorConfig.validator!);
             if (!rule.schema.default) {
@@ -229,7 +298,7 @@ export default function App() {
             }
 
             const cellValue = createCellValueByType(field.type, String(rule.schema.default), field);
-            
+
             if (cellValue !== null) {
               const success = await setCellValueWithRetry(table, field.id, recordId, cellValue);
               if (success) {
@@ -261,7 +330,7 @@ export default function App() {
       await handleValidation(fields);
     });
 
-    const offDelete = table.onRecordDelete(async  () => {
+    const offDelete = table.onRecordDelete(async () => {
       console.log("onRecordDelete");
       recordsCache.current = [];
       validatorsCache.current = {};
@@ -283,13 +352,13 @@ export default function App() {
       // 清空缓存
       recordsCache.current = [];
       validatorsCache.current = {};
-      
+
       const fields = await getTableMetadata();
       try {
-        console.log("开始验证数据",fields);
+        console.log("开始验证数据", fields);
         await handleValidation(fields);
       } catch (error) {
-        console.log("验证数据失败",error);
+        console.log("验证数据失败", error);
       }
     }
 
@@ -314,13 +383,13 @@ export default function App() {
   // 提取验证器配置的辅助函数
   const extractValidatorConfig = (fieldMetadata: IFieldMeta): ValidatorConfiguration | null => {
     if (!(fieldMetadata as any).description) return null;
-    
+
     const description = (fieldMetadata as any).description;
     const comment = Array.isArray(description?.content) ? description.content : [];
     const validatorSegment = comment.find((item: any) => item.type === 'text' && item.text.includes('validator'));
-    
+
     if (!validatorSegment) return null;
-    
+
     try {
       const config = JSON.parse(validatorSegment.text.trim());
       if (!config.validator || typeof config.validator !== 'string' || !config.validator.trim()) {
@@ -353,11 +422,11 @@ export default function App() {
       } else {
         res = await table.getRecords({ pageSize });
       }
-      
+
       if (res) {
         records.push(...res.records);
       }
-      
+
       if (!res || !res.hasMore) {
         break;
       }
@@ -365,7 +434,7 @@ export default function App() {
     }
 
     console.log(`获取到 ${records.length} 条记录`);
-    
+
     // 转换为优化的数据结构
     const processedRecords: RecordData[] = records.map(record => {
       const fields: Record<string, string> = {};
@@ -385,14 +454,14 @@ export default function App() {
   // 获取或创建验证器
   const getOrCreateValidator = (fieldMetadata: IFieldMeta, validatorConfig: ValidatorConfiguration, allValues: string[]): any => {
     const cacheKey = fieldMetadata.id;
-    
+
     if (validatorsCache.current[cacheKey]) {
       return validatorsCache.current[cacheKey].validator;
     }
 
     const validationSchema = { [fieldMetadata.name]: validatorConfig.validator };
     const validator = createValidator(allValues);
-    
+
     let compiledValidator;
     try {
       compiledValidator = validator.compile(validationSchema);
@@ -420,15 +489,15 @@ export default function App() {
     const batchResults: ValidationHistoryRecord[] = [];
 
     console.log("processBatchValidation", validator, endIndex);
-    
+
     for (let i = startIndex; i < endIndex && i < records.length; i++) {
       const record = records[i];
       const cellValue = record.fields[fieldMetadata.id] || '';
 
       console.log("cellValue", cellValue);
-      
+
       const validationResult = validator({ [fieldMetadata.name]: cellValue });
-      
+
       if (validationResult !== true) {
         let validationMessage = '';
         if (Array.isArray(validationResult)) {
@@ -436,7 +505,7 @@ export default function App() {
         } else {
           validationMessage = 'unknown';
         }
-        
+
         batchResults.push({
           recordId: String(i + 1),
           columnName: fieldMetadata.name,
@@ -446,7 +515,7 @@ export default function App() {
         });
       }
     }
-    
+
     return batchResults;
   };
 
@@ -458,7 +527,7 @@ export default function App() {
   ): Promise<ValidationHistoryRecord[]> => {
     // 收集该字段的所有值
     const allValues = records.map(record => record.fields[fieldMetadata.id] || '');
-    
+
     // 获取或创建验证器
     const validator = getOrCreateValidator(fieldMetadata, validatorConfig, allValues);
     if (!validator) {
@@ -466,11 +535,11 @@ export default function App() {
     }
 
     const allResults: ValidationHistoryRecord[] = [];
-    
+
     // 分批处理数据
     for (let i = 0; i < records.length; i += batchSize) {
       const endIndex = Math.min(i + batchSize, records.length);
-      
+
       // 使用异步处理避免阻塞UI
       const batchResults = await new Promise<ValidationHistoryRecord[]>((resolve) => {
         setTimeout(async () => {
@@ -478,15 +547,15 @@ export default function App() {
           resolve(results);
         }, 0);
       });
-      
+
       allResults.push(...batchResults);
-      
+
       // 给UI一个更新的机会
       if (i > 0 && i % (batchSize * 5) === 0) {
         console.log(`已处理 ${i}/${records.length} 条记录`);
       }
     }
-    
+
     return allResults;
   };
 
@@ -501,12 +570,12 @@ export default function App() {
     if (!selection?.tableId || !selection?.viewId) {
       return;
     }
-    
+
     const table = await bitable.base.getTableById(selection.tableId);
     const view = await table.getViewById(selection.viewId);
     const allRecordIds = await view.getVisibleRecordIdList();
     const recordIds = allRecordIds.filter((id): id is string => id !== undefined);
-    
+
     // 获取缓存的记录数据
     const allRecords = await getCachedRecordsData(table);
 
@@ -520,27 +589,27 @@ export default function App() {
     const visibleRecords: RecordData[] = recordIds
       .map(id => recordMap.get(id))
       .filter((record): record is RecordData => Boolean(record));
-      
+
     const allValidationResults: ValidationHistoryRecord[] = [];
-    
+
     // 并行验证多个字段
     const validationPromises = fieldsToValidate.map(async (fieldMetadata) => {
       const validatorConfig = extractValidatorConfig(fieldMetadata);
       if (!validatorConfig) return [];
-      
+
       return await validateFieldRecords(visibleRecords, fieldMetadata, validatorConfig);
     });
-    
+
     const results = await Promise.all(validationPromises);
-    
+
     // 合并所有结果
     results.forEach(fieldResults => {
       allValidationResults.push(...fieldResults);
     });
-    
+
     // 一次性更新UI
     setValidationHistory(allValidationResults);
-    
+
     console.log(`校验结束，共发现 ${allValidationResults.length} 个问题`);
   };
 
@@ -568,19 +637,42 @@ export default function App() {
         isValidatingState ? (
           <p style={{ margin: '8px 0' }}>{t('validating_table')}</p>
         ) : validationHistory.length ? (
-          <Table
-            className="compact-table"
-            style={{ width: '100%', margin: 0 }}
-            columns={[
-              { title: t('history_column'), dataIndex: 'columnName', key: 'columnName', width: '20%' },
-              { title: t('history_record'), dataIndex: 'recordId', key: 'recordId', width: '20%' },
-              { title: t('history_oldVal'), dataIndex: 'cellValue', key: 'cellValue', width: '30%' },
-              { title: t('history_newVal'), dataIndex: 'validationResult', key: 'validationResult', width: '30%' },
-            ]}
-            dataSource={validationHistory}
-            pagination={false}
-            size="small"
-          />
+          <div>
+            {false && (
+
+              <Table
+                className="compact-table"
+                style={{ width: '100%', margin: 0 }}
+                columns={[
+                  { title: t('history_column'), dataIndex: 'columnName', key: 'columnName', width: '20%' },
+                  { title: t('history_record'), dataIndex: 'recordId', key: 'recordId', width: '20%' },
+                  { title: t('history_oldVal'), dataIndex: 'cellValue', key: 'cellValue', width: '30%' },
+                  { title: t('history_newVal'), dataIndex: 'validationResult', key: 'validationResult', width: '30%' },
+                ]}
+                dataSource={validationHistory}
+                pagination={false}
+                size="small"
+              />
+            )}
+            {formattedMessages.length > 0 && (
+              <div style={{ marginTop: '20px', padding: '16px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 'bold' }}>📢 数据校验问题通知</h3>
+                <div style={{ backgroundColor: 'white', padding: '12px', borderRadius: '4px', border: '1px solid #e8e8e8' }}>
+                  <div style={{ marginBottom: '8px', fontSize: '14px' }}>
+                    <strong>表链接:</strong> <a href="#" style={{ color: '#1890ff', textDecoration: 'none' }}>当前表格</a>
+                  </div>
+                  {formattedMessages.map((msg, index) => (
+                    <div key={index} style={{ marginBottom: '8px', fontSize: '14px' }}>
+                      <strong>{msg.problemType}:</strong> "{msg.fieldName}" [{msg.rowNumbers.join(',')}行]
+                    </div>
+                  ))}
+                  <div style={{ marginTop: '12px', fontSize: '14px', color: '#666' }}>
+                    请及时修正，谢谢！
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           !validationError && <p style={{ margin: '8px 0', textAlign: 'center' }}>{t('no_history')}</p>
         )
