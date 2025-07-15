@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev_api": "npx tsx --watch src/api.tsx",
+    "dev_mini": "npx tsx --watch src/mini.tsx"
   },
   "keywords": [],
   "author": "",
@@ -28,6 +30,7 @@
     "@douyinfe/semi-ui": "^2.36.0",
     "@lark-base-open/js-sdk": "^0.5.0",
     "@lark-base-open/node-sdk": "^1.0.1",
+    "@larksuiteoapi/node-sdk": "^1.52.0",
     "fastest-validator": "^1.19.1",
     "i18next": "^23.2.3",
     "multicoin-address-validator": "^0.5.26",
